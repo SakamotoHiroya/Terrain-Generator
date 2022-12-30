@@ -6,13 +6,28 @@ def linerCompletion(x, y1, y2):
     return (y2 - y1) * x + y1;
 
 # Method that returns three dimensions slope
-def getSlope(location,seed=0,maxSlope=5):
-    return np.array([(hash((*location, seed, 0)) % 20000 - 10000) / 10000 * maxSlope,
-                     (hash((*location, seed, 1)) % 20000 - 10000) / 10000 * maxSlope,
-                     (hash((*location, seed, 2)) % 20000 - 10000) / 10000 * maxSlope])
+def randomSlope(location,seed=0,maxSlope=5):
+    if isinstance(location[0], np.ndarray):
+        result = []
+        for arg in zip(*location):
+            result.append(randomSlope(arg, seed=seed, maxSlope=maxSlope))
+        return np.array(result)
+    else:
+        return np.array([(hash((*location, seed, 0)) % 20000 - 10000) / 10000 * maxSlope,
+                         (hash((*location, seed, 1)) % 20000 - 10000) / 10000 * maxSlope,
+                         (hash((*location, seed, 2)) % 20000 - 10000) / 10000 * maxSlope])
+
+def fade(t):
+    if isinstance(t, np.ndarray):
+        result = []
+        for arg in t:
+            result.append(fade(arg))
+        return np.array(result)
+    else:
+        return 6*t**5 - 15*t**4 + 10*t**3
 
 # Method that returns perlin noise values in three dimensions or less.
-def noise(x, y=0, z=0,seed=0,scale=1,maxSlope=5):
+def noise(x, y=0, z=0,seed=0,scale=1,maxSlope=5,slopeFunc=randomSlope):
 
     if isinstance(x, np.ndarray):
         if not isinstance(y, np.ndarray) and y == 0:
@@ -22,7 +37,7 @@ def noise(x, y=0, z=0,seed=0,scale=1,maxSlope=5):
         
         result = []
         for location in zip(x, y, z):
-            result.append(noise(*location, seed=seed, scale=scale, maxSlope=maxSlope))
+            result.append(noise(*location, seed=seed, scale=scale, maxSlope=maxSlope,slopeFunc=slopeFunc))
         return np.array(result)
     else:
         x /= scale
@@ -51,7 +66,7 @@ def noise(x, y=0, z=0,seed=0,scale=1,maxSlope=5):
         #decide slope vector
         slopes = []
         for grid in grids:
-            slopes.append(getSlope(grid,seed=seed,maxSlope=maxSlope))
+            slopes.append(slopeFunc(grid,seed=seed,maxSlope=maxSlope))
         slopes = np.array(slopes);
         
         #vectors from grid to target point
@@ -66,10 +81,12 @@ def noise(x, y=0, z=0,seed=0,scale=1,maxSlope=5):
             gridValues.append(np.dot(gridVector, slope))
         gridValues = np.array(gridValues)
         
-        return linerCompletion(relativePoint[2],
-                        linerCompletion(relativePoint[1],
-                                        linerCompletion(relativePoint[0], gridValues[0], gridValues[1]),
-                                        linerCompletion(relativePoint[0], gridValues[2], gridValues[3])),
-                        linerCompletion(relativePoint[1],
-                                        linerCompletion(relativePoint[0], gridValues[4], gridValues[5]),
-                                        linerCompletion(relativePoint[0], gridValues[6], gridValues[7])))    
+        fadePoint = fade(relativePoint)
+        
+        return linerCompletion(fadePoint[2],
+                        linerCompletion(fadePoint[1],
+                                        linerCompletion(fadePoint[0], gridValues[0], gridValues[1]),
+                                        linerCompletion(fadePoint[0], gridValues[2], gridValues[3])),
+                        linerCompletion(fadePoint[1],
+                                        linerCompletion(fadePoint[0], gridValues[4], gridValues[5]),
+                                        linerCompletion(fadePoint[0], gridValues[6], gridValues[7])))    
